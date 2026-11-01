@@ -452,3 +452,91 @@ Open your browser at:
    - *Future Work:* Integration with live job board APIs (e.g., LinkedIn Jobs, Adzuna) for dynamic real-time market CTC updates.
 3. **Automated Mentorship:**
    - *Future Work:* Integration with AI career mentor agents to critique student resume bullets and suggest customized project ideas based on the skill gap analyzer.
+
+---
+
+## ☁️ 11. Cloud Production Deployment Guide
+
+PathFinder is configured for cloud deployment across **Aiven (Managed MySQL)**, **Render (Node/Express API)**, and **Vercel / Netlify (React Frontend)**.
+
+### Step A: Deploy Managed MySQL on Aiven (Free Tier)
+1. Sign up for a free account at [aiven.io](https://aiven.io).
+2. Click **Create Service** -> select **MySQL**.
+3. Choose the free tier plan and select a cloud region close to your users (e.g., AWS / GCP Mumbai, Frankfurt, or Oregon).
+4. Once provisioned (approx. 2 minutes), go to the **Overview** tab and copy your connection credentials:
+   - **Host:** e.g., `mysql-3bxxxxx-project.aivencloud.com`
+   - **Port:** e.g., `12345`
+   - **User:** `avnadmin`
+   - **Password:** `<AIVEN_GENERATED_PASSWORD>`
+   - **Database Name:** `defaultdb`
+5. Initialize and seed the remote database from your local terminal:
+   ```powershell
+   # In PowerShell
+   $env:DB_HOST="mysql-3bxxxxx-project.aivencloud.com"
+   $env:DB_PORT="12345"
+   $env:DB_USER="avnadmin"
+   $env:DB_PASS="<AIVEN_GENERATED_PASSWORD>"
+   $env:DB_NAME="defaultdb"
+   $env:DB_SSL="true"
+   cd backend
+   node seed.js
+   ```
+   *(The seed script automatically detects the remote database, establishes an encrypted SSL connection, and seeds all 7 careers, 42 milestones, and 126 verification questions).*
+
+---
+
+### Step B: Deploy Backend API on Render
+1. Push your PathFinder repository to GitHub.
+2. Sign in to [Render Dashboard](https://dashboard.render.com) and click **New +** -> **Web Service**.
+3. Connect your GitHub repository.
+4. Configure service build settings:
+   - **Name:** `pathfinder-backend`
+   - **Root Directory:** `backend`
+   - **Runtime:** `Node`
+   - **Build Command:** `npm install`
+   - **Start Command:** `node server.js`
+5. In the **Environment Variables** tab, add the following key-value pairs:
+   | Key | Value | Notes |
+   |---|---|---|
+   | `NODE_ENV` | `production` | Enables production mode |
+   | `PORT` | `5000` | Render will bind this port |
+   | `JWT_SECRET` | `<GENERATE_A_RANDOM_LONG_SECRET_KEY>` | For stateless auth tokens |
+   | `FRONTEND_URL` | `https://pathfinder-career.vercel.app` | Your Vercel/Netlify frontend URL |
+   | `DB_HOST` | `mysql-3bxxxxx-project.aivencloud.com` | From Aiven Console |
+   | `DB_PORT` | `12345` | From Aiven Console |
+   | `DB_USER` | `avnadmin` | From Aiven Console |
+   | `DB_PASS` | `<AIVEN_GENERATED_PASSWORD>` | From Aiven Console |
+   | `DB_NAME` | `defaultdb` | From Aiven Console |
+   | `DB_SSL` | `true` | Enables SSL encryption |
+6. Click **Create Web Service**.
+7. Once live, test the health check URL in your browser:  
+   👉 `https://pathfinder-backend.onrender.com/api/health`  
+   *(Expected response: `{ "ok": true, "status": "healthy", ... }`)*.
+
+---
+
+### Step C: Deploy Frontend on Vercel or Netlify
+
+#### Option 1: Vercel (Recommended)
+1. Go to [vercel.com](https://vercel.com) and click **Add New...** -> **Project**.
+2. Select your PathFinder GitHub repository.
+3. In project configuration:
+   - **Framework Preset:** `Vite`
+   - **Root Directory:** Click Edit and select `frontend`
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+4. Expand **Environment Variables** and add:
+   - `VITE_API_URL`: `https://pathfinder-backend.onrender.com/api` *(Your Render backend URL with `/api` suffix)*
+5. Click **Deploy**.
+
+#### Option 2: Netlify
+1. Go to [netlify.com](https://netlify.com) and click **Add new site** -> **Import an existing project**.
+2. Link your repository.
+3. Configure build settings:
+   - **Base directory:** `frontend`
+   - **Build command:** `npm run build`
+   - **Publish directory:** `frontend/dist`
+4. In **Site Configuration** -> **Environment variables**, add:
+   - `VITE_API_URL`: `https://pathfinder-backend.onrender.com/api`
+5. Click **Deploy site**.
+

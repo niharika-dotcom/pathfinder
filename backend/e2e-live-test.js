@@ -7,10 +7,22 @@ async function runLiveTests() {
   console.log('====================================================================\n');
 
   try {
-    // 1. Health check
-    const health = await (await fetch(`${BASE}/health`)).json();
+    // 1. Health check (Verify ok: true)
+    const healthRes = await fetch(`${BASE}/health`);
+    const health = await healthRes.json();
+    if (!health.ok) throw new Error('Health check missing ok: true');
     if (!health.database.isMysqlLive) throw new Error('Live MySQL is not reported live');
-    console.log('✅ 1. Health Probe: healthy | Engine:', health.database.engine);
+    console.log('✅ 1. Health Probe: ok: true | status: healthy | Engine:', health.database.engine, '| SSL:', health.database.sslEnabled);
+
+    // 1b. CORS verification
+    const corsRes = await fetch(`${BASE}/health`, {
+      headers: { 'Origin': 'http://localhost:5173' }
+    });
+    const allowOrigin = corsRes.headers.get('access-control-allow-origin');
+    if (allowOrigin !== 'http://localhost:5173') {
+      throw new Error(`CORS header mismatch: expected http://localhost:5173, got ${allowOrigin}`);
+    }
+    console.log('✅ 1b. CORS Probe: Access-Control-Allow-Origin correctly granted to http://localhost:5173');
 
     // 2. Register
     const regEmail = `live.test.${Date.now()}@btech.edu`;

@@ -4,9 +4,6 @@
 -- B.Tech Final Project Specification (Strict MySQL Only)
 -- ====================================================================
 
-CREATE DATABASE IF NOT EXISTS `pathfinder_db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `pathfinder_db`;
-
 -- Drop tables in reverse dependency order
 DROP TABLE IF EXISTS `milestone_quiz_attempts`;
 DROP TABLE IF EXISTS `milestone_questions`;

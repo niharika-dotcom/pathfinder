@@ -19,27 +19,58 @@ export async function runSeed(poolOrConnection = null) {
   const user = process.env.DB_USER || 'root';
   const password = process.env.DB_PASS || process.env.DB_PASSWORD || '';
   const database = process.env.DB_NAME || 'pathfinder_db';
+  const dbSsl = process.env.DB_SSL === 'true' || process.env.DB_SSL === '1';
 
   let conn = poolOrConnection;
   let shouldClose = false;
 
   try {
     if (!conn) {
-      conn = await mysql.createConnection({
+      const connConfig = {
         host,
         port,
         user,
         password,
+        database,
         multipleStatements: true
-      });
-      shouldClose = true;
+      };
+
+      if (dbSsl) {
+        connConfig.ssl = { rejectUnauthorized: false };
+      }
+
+      try {
+        // Connect directly to target database (Works for remote databases like Aiven/Render/AWS RDS)
+        conn = await mysql.createConnection(connConfig);
+        shouldClose = true;
+      } catch (connErr) {
+        // If connecting failed because database doesn't exist on local instance, create it
+        if (connErr.code === 'ER_BAD_DB_ERROR') {
+          console.log(`Database '${database}' does not exist yet. Creating database on local server...`);
+          const adminConfig = { host, port, user, password, multipleStatements: true };
+          if (dbSsl) adminConfig.ssl = { rejectUnauthorized: false };
+          const adminConn = await mysql.createConnection(adminConfig);
+          await adminConn.query(`CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+          await adminConn.end();
+
+          conn = await mysql.createConnection(connConfig);
+          shouldClose = true;
+        } else {
+          throw connErr;
+        }
+      }
     }
 
-    // 1. Execute schema.sql (Drops and recreates all tables cleanly)
+    // 1. Execute schema.sql (Drops and recreates tables in target database; safe for remote DBs)
     const schemaPath = path.resolve(__dirname, 'schema.sql');
-    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+    let schemaSql = fs.readFileSync(schemaPath, 'utf8');
+
+    // Strip any CREATE DATABASE or USE statements to guarantee safe execution on remote databases
+    schemaSql = schemaSql
+      .replace(/CREATE DATABASE\s+IF NOT EXISTS\s+`?[^;]+;?/gi, '')
+      .replace(/USE\s+`?[^;]+;?/gi, '');
+
     await conn.query(schemaSql);
-    await conn.query(`USE \`${database}\``);
 
     // 2. Seed 7 Careers with Salary Source and Last Verified Date
     const seedDate = '2026-11-01';

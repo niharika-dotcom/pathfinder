@@ -24,8 +24,38 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('[UNHANDLED REJECTION]:', reason);
 });
 
-// Middleware
-app.use(cors());
+// CORS Configuration: Allow origin from FRONTEND_URL env var plus localhost:5173 and :5174
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174'
+];
+
+if (process.env.FRONTEND_URL) {
+  process.env.FRONTEND_URL.split(',').forEach(url => {
+    const cleanUrl = url.trim().replace(/\/+$/, '');
+    if (cleanUrl && !allowedOrigins.includes(cleanUrl)) {
+      allowedOrigins.push(cleanUrl);
+    }
+  });
+}
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow non-browser requests (e.g. curl, tests, mobile clients) with no origin header
+    if (!origin) return callback(null, true);
+    const cleanOrigin = origin.replace(/\/+$/, '');
+    if (allowedOrigins.includes(origin) || allowedOrigins.includes(cleanOrigin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS policy blocked access from origin: ${origin}`), false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
 // Request logger for debugging & viva demonstration
@@ -1152,6 +1182,7 @@ app.delete('/api/admin/questions/:id', authenticateToken, verifyAdmin, async (re
 app.get('/api/health', (req, res) => {
   const dbStatus = db.getDatabaseStatus();
   return res.status(200).json({
+    ok: true,
     status: 'healthy',
     project: 'PathFinder - B.Tech Final Project API',
     database: dbStatus,

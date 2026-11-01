@@ -12,9 +12,20 @@ const server = app.listen(PORT, async () => {
   const BASE = `http://localhost:${PORT}/api`;
 
   try {
-    // 1. Health Probe
+    // 1. Health Probe (Includes ok: true)
     const health = await (await fetch(`${BASE}/health`)).json();
-    console.log('✅ 1. Health Probe:', health.status, '| DB:', health.database.engine);
+    if (!health.ok) throw new Error('Health check missing ok: true');
+    console.log('✅ 1. Health Probe: ok: true | status:', health.status, '| DB:', health.database.engine);
+
+    // 1b. CORS verification
+    const corsRes = await fetch(`${BASE}/health`, {
+      headers: { 'Origin': 'http://localhost:5173' }
+    });
+    const allowOrigin = corsRes.headers.get('access-control-allow-origin');
+    if (allowOrigin !== 'http://localhost:5173') {
+      throw new Error(`CORS header mismatch: expected http://localhost:5173, got ${allowOrigin}`);
+    }
+    console.log('✅ 1b. CORS Probe: Access-Control-Allow-Origin correctly granted to http://localhost:5173');
 
     // 2. Register New Student
     const regRes = await (await fetch(`${BASE}/auth/register`, {

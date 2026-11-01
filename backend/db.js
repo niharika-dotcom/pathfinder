@@ -12,10 +12,11 @@ const dbPort = parseInt(process.env.DB_PORT, 10) || 3306;
 const dbUser = process.env.DB_USER || 'root';
 const dbPass = process.env.DB_PASS || process.env.DB_PASSWORD || '';
 const dbName = process.env.DB_NAME || 'pathfinder_db';
+const dbSsl = process.env.DB_SSL === 'true' || process.env.DB_SSL === '1';
 const connectionLimit = parseInt(process.env.DB_CONNECTION_LIMIT, 10) || 10;
 
-// Create MySQL connection pool - STRICT MYSQL ONLY, NO IN-MEMORY FALLBACK
-export const pool = mysql.createPool({
+// Configure connection pool options with optional SSL for cloud MySQL providers (Aiven, Render, PlanetScale, AWS RDS)
+const poolConfig = {
   host: dbHost,
   port: dbPort,
   user: dbUser,
@@ -24,14 +25,23 @@ export const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: connectionLimit,
   queueLimit: 0,
-  connectTimeout: 5000,
+  connectTimeout: 10000,
   dateStrings: true
-});
+};
+
+if (dbSsl) {
+  poolConfig.ssl = {
+    rejectUnauthorized: false
+  };
+}
+
+// Create MySQL connection pool - STRICT MYSQL ONLY, NO IN-MEMORY FALLBACK
+export const pool = mysql.createPool(poolConfig);
 
 // Verify live MySQL connection immediately on startup
 try {
   const connection = await pool.getConnection();
-  console.log(`[Database] Successfully connected to MySQL database '${dbName}' on ${dbHost}:${dbPort}`);
+  console.log(`[Database] Successfully connected to MySQL database '${dbName}' on ${dbHost}:${dbPort}${dbSsl ? ' (SSL enabled)' : ''}`);
   connection.release();
 } catch (err) {
   console.error(`MySQL connection failed: ${err.message}. Check .env and make sure MySQL is running`);
@@ -131,6 +141,7 @@ export function getDatabaseStatus() {
     dbHost,
     dbPort,
     dbName,
+    sslEnabled: dbSsl,
     engine: 'MySQL 8.0+/9.x Relational Engine'
   };
 }

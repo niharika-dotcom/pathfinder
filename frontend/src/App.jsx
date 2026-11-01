@@ -115,7 +115,9 @@ export default function App() {
     setTimeout(() => setToast(null), 3800);
   };
 
-  // Authenticated API Fetch Helper
+  // Authenticated API Fetch Helper (Supports remote deployed backend via VITE_API_URL or local /api proxy)
+  const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
+
   const apiCall = async (endpoint, method = 'GET', body = null) => {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -123,7 +125,8 @@ export default function App() {
     const config = { method, headers };
     if (body) config.body = JSON.stringify(body);
 
-    const res = await fetch(`/api${endpoint}`, config);
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const res = await fetch(`${API_BASE}${cleanEndpoint}`, config);
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.error || `Error ${res.status}`);
