@@ -1,0 +1,25 @@
+{
+  "name": "pathfinder-genz-career-navigator",
+  "version": "1.0.0",
+  "description": "Production Full-Stack Web Application for College Students Career Roadmaps & Readiness",
+  "scripts": {
+    "start": "node backend/src/server.js",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev": "node start-dev.js",
+    "db:init": "cd backend && npm run db:init",
+    "test:backend": "cd backend && npm test",
+    "build:frontend": "cd frontend && npm run build"
+  },
+  "keywords": [
+    "react",
+    "express",
+    "mysql",
+    "vite",
+    "tailwind",
+    "gen-z",
+    "career-navigator"
+  ],
+  "author": "PathFinder Engineering Team",
+  "license": "MIT"
+}
